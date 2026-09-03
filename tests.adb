@@ -109,7 +109,7 @@ begin
       Toks.Append (1); -- ID
       Parse (Table, G, Toks, Accepted);
       Check ("6.1 Multiplication expression parsed successfully", Accepted);
-      Check ("6.2 Expression accepted", Accepted = True);
+      Check ("6.2 Expression accepted", Accepted);
       Check ("6.3 Token vector non-empty", not Toks.Is_Empty);
    end;
 
