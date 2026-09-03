@@ -189,7 +189,7 @@ package body Canonical_LR_Parser is
                      if Item.Rule_No = 1 and then Item.Lookahead = G.EOF_Symbol then
                         Table.Actions.Include 
                           ((State => S_Idx, Symbol => G.EOF_Symbol),
-                           (Kind => Accept));
+                           (Kind => Accept_Action));
                      else
                         Table.Actions.Include 
                           ((State => S_Idx, Symbol => Item.Lookahead),
@@ -263,7 +263,7 @@ package body Canonical_LR_Parser is
                            end;
                         end;
 
-                     when Accept =>
+                     when Accept_Action =>
                         Accepted := True;
                         exit;
 
