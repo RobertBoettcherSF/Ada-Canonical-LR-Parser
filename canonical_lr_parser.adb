@@ -49,7 +49,7 @@ package body Canonical_LR_Parser is
       type Symbol_Set is array (Symbol_Index range 0 .. Max_Sym) of Boolean;
       type First_Sets_Type is array (Symbol_Index range 0 .. Max_Sym) of Symbol_Set;
 
-      Firsts : First_Sets_Type := (others => (others => False));
+      Firsts : First_Sets_Type := [others => [others => False]];
 
       procedure Compute_Firsts is
          Added : Boolean := True;
@@ -97,7 +97,7 @@ package body Canonical_LR_Parser is
                   begin
                      if Next_Sym > G.Terminal_Count and then Next_Sym /= G.EOF_Symbol then
                         declare
-                           Lookahead_Set : Symbol_Set := (others => False);
+                           Lookahead_Set : Symbol_Set := [others => False];
                         begin
                            if Item.Dot_Pos + 1 < Prod_RHS.Last_Index then
                               declare
