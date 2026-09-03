@@ -1,9 +1,9 @@
 -- canonical_lr_parser.adb
 -- Body implementation for Canonical LR(1) Parser in Ada 2023
 
-with Ada.Containers.Vectors;
-
 package body Canonical_LR_Parser is
+
+   use type Item_Sets.Set;
 
    function "<" (Left, Right : LR1_Item) return Boolean is
    begin
