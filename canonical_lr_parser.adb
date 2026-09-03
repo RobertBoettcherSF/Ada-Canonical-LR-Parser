@@ -41,103 +41,133 @@ package body Canonical_LR_Parser is
       end loop;
    end Validate_Grammar;
 
-   -- Closure implementation for LR(1) items
-   function Closure 
-     (I : in Item_Sets.Set; 
-      G : in Grammar_Definition) return Item_Sets.Set
+   procedure Build_Parsing_Table 
+     (G     : in  Grammar_Definition;
+      Table : out Parsing_Table)
    is
-      Result : Item_Sets.Set := I;
-      To_Add : Item_Sets.Set;
-      Added  : Boolean := True;
-   begin
-      while Added loop
-         Added := False;
-         To_Add.Clear;
+      Max_Sym : constant Symbol_Index := G.Terminal_Count + G.Nonterminal_Count + 2;
+      type Symbol_Set is array (Symbol_Index range 0 .. Max_Sym) of Boolean;
+      type First_Sets_Type is array (Symbol_Index range 0 .. Max_Sym) of Symbol_Set;
 
-         for Item of Result loop
+      Firsts : First_Sets_Type := (others => (others => False));
+
+      procedure Compute_Firsts is
+         Added : Boolean := True;
+      begin
+         for I in 0 .. Max_Sym loop
+            if I <= G.Terminal_Count or else I = G.EOF_Symbol then
+               Firsts (I)(I) := True;
+            end if;
+         end loop;
+         
+         while Added loop
+            Added := False;
+            for P of G.Productions loop
+               if not P.RHS.Is_Empty then
+                  declare
+                     First_RHS : constant Symbol_Index := P.RHS.First_Element;
+                  begin
+                     for T in 0 .. Max_Sym loop
+                        if Firsts (First_RHS)(T) and then not Firsts (P.LHS)(T) then
+                           Firsts (P.LHS)(T) := True;
+                           Added := True;
+                        end if;
+                     end loop;
+                  end;
+               end if;
+            end loop;
+         end loop;
+      end Compute_Firsts;
+
+      function Closure (I : in Item_Sets.Set) return Item_Sets.Set is
+         Result : Item_Sets.Set := I;
+         To_Add : Item_Sets.Set;
+         Added  : Boolean := True;
+      begin
+         while Added loop
+            Added := False;
+            To_Add.Clear;
+
+            for Item of Result loop
+               if Item.Dot_Pos < G.Productions.Element (Item.Rule_No).RHS.Last_Index then
+                  declare
+                     Prod_RHS : constant Symbol_Vectors.Vector := 
+                       G.Productions.Element (Item.Rule_No).RHS;
+                     Next_Sym : constant Symbol_Index := Prod_RHS.Element (Item.Dot_Pos + 1);
+                  begin
+                     if Next_Sym > G.Terminal_Count and then Next_Sym /= G.EOF_Symbol then
+                        declare
+                           Lookahead_Set : Symbol_Set := (others => False);
+                        begin
+                           if Item.Dot_Pos + 1 < Prod_RHS.Last_Index then
+                              declare
+                                 Beta_1 : constant Symbol_Index := Prod_RHS.Element (Item.Dot_Pos + 2);
+                              begin
+                                 Lookahead_Set := Firsts (Beta_1);
+                              end;
+                           else
+                              Lookahead_Set (Item.Lookahead) := True;
+                           end if;
+
+                           for J in 1 .. G.Productions.Last_Index loop
+                              if G.Productions.Element (J).LHS = Next_Sym then
+                                 for LA in 0 .. Max_Sym loop
+                                    if Lookahead_Set (LA) then
+                                       declare
+                                          New_Item : constant LR1_Item := 
+                                            (Rule_No => J, Dot_Pos => 0, Lookahead => LA);
+                                       begin
+                                          if not Result.Contains (New_Item) and then not To_Add.Contains (New_Item) then
+                                             To_Add.Insert (New_Item);
+                                             Added := True;
+                                          end if;
+                                       end;
+                                    end if;
+                                 end loop;
+                              end if;
+                           end loop;
+                        end;
+                     end if;
+                  end;
+               end if;
+            end loop;
+
+            for New_Item of To_Add loop
+               Result.Insert (New_Item);
+            end loop;
+         end loop;
+         return Result;
+      end Closure;
+
+      function Goto_Set (I : in Item_Sets.Set; X : Symbol_Index) return Item_Sets.Set is
+         Moved : Item_Sets.Set;
+      begin
+         for Item of I loop
             if Item.Dot_Pos < G.Productions.Element (Item.Rule_No).RHS.Last_Index then
                declare
                   Prod_RHS : constant Symbol_Vectors.Vector := 
                     G.Productions.Element (Item.Rule_No).RHS;
                   Next_Sym : constant Symbol_Index := Prod_RHS.Element (Item.Dot_Pos + 1);
                begin
-                  if Next_Sym > G.Terminal_Count and then Next_Sym /= G.EOF_Symbol then
-                     for J in 1 .. G.Productions.Last_Index loop
-                        declare
-                           P : constant Production_Record := G.Productions.Element (J);
-                        begin
-                           if P.LHS = Next_Sym then
-                              for T_Idx in 1 .. G.Terminal_Count loop
-                                 declare
-                                    New_Item : constant LR1_Item := 
-                                      (Rule_No => J, Dot_Pos => 0, Lookahead => T_Idx);
-                                 begin
-                                    if not Result.Contains (New_Item) and then not To_Add.Contains (New_Item) then
-                                       To_Add.Insert (New_Item);
-                                       Added := True;
-                                    end if;
-                                 end;
-                              end loop;
-                              declare
-                                 EOF_Item : constant LR1_Item := 
-                                   (Rule_No => J, Dot_Pos => 0, Lookahead => G.EOF_Symbol);
-                              begin
-                                 if not Result.Contains (EOF_Item) and then not To_Add.Contains (EOF_Item) then
-                                    To_Add.Insert (EOF_Item);
-                                    Added := True;
-                                 end if;
-                              end;
-                           end if;
-                        end;
-                     end loop;
+                  if Next_Sym = X then
+                     Moved.Insert ((Rule_No => Item.Rule_No, 
+                                    Dot_Pos => Item.Dot_Pos + 1, 
+                                    Lookahead => Item.Lookahead));
                   end if;
                end;
             end if;
          end loop;
+         return Closure (Moved);
+      end Goto_Set;
 
-         for New_Item of To_Add loop
-            Result.Insert (New_Item);
-         end loop;
-
-      end loop;
-      return Result;
-   end Closure;
-
-   function Goto_Set
-     (I : in Item_Sets.Set;
-      X : in Symbol_Index;
-      G : in Grammar_Definition) return Item_Sets.Set
-   is
-      Moved : Item_Sets.Set;
-   begin
-      for Item of I loop
-         if Item.Dot_Pos < G.Productions.Element (Item.Rule_No).RHS.Last_Index then
-            declare
-               Prod_RHS : constant Symbol_Vectors.Vector := 
-                 G.Productions.Element (Item.Rule_No).RHS;
-               Next_Sym : constant Symbol_Index := Prod_RHS.Element (Item.Dot_Pos + 1);
-            begin
-               if Next_Sym = X then
-                  Moved.Insert ((Rule_No => Item.Rule_No, 
-                                 Dot_Pos => Item.Dot_Pos + 1, 
-                                 Lookahead => Item.Lookahead));
-               end if;
-            end;
-         end if;
-      end loop;
-      return Closure (Moved, G);
-   end Goto_Set;
-
-   procedure Build_Parsing_Table 
-     (G     : in  Grammar_Definition;
-      Table : out Parsing_Table)
-   is
       Initial_Item : constant LR1_Item := (Rule_No => 1, Dot_Pos => 0, Lookahead => G.EOF_Symbol);
       Initial_Set  : Item_Sets.Set;
    begin
       Validate_Grammar (G);
+      Compute_Firsts;
+      
       Initial_Set.Insert (Initial_Item);
-      Initial_Set := Closure (Initial_Set, G);
+      Initial_Set := Closure (Initial_Set);
 
       Table.States.Append (Initial_Set);
 
@@ -148,9 +178,9 @@ package body Canonical_LR_Parser is
             declare
                Current_State : constant Item_Sets.Set := Table.States.Element (Idx);
             begin
-               for Sym_Val in 0 .. (G.Terminal_Count + G.Nonterminal_Count + 2) loop
+               for Sym_Val in 0 .. Max_Sym loop
                   declare
-                     Next_S : constant Item_Sets.Set := Goto_Set (Current_State, Sym_Val, G);
+                     Next_S : constant Item_Sets.Set := Goto_Set (Current_State, Sym_Val);
                   begin
                      if not Next_S.Is_Empty then
                         declare
