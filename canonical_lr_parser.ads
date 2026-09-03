@@ -15,7 +15,7 @@ package Canonical_LR_Parser is
    subtype State_Index is Natural;
 
    -- Action kinds for ACTION table
-   type Action_Kind is (Shift, Reduce, Accept, Error_Action);
+   type Action_Kind is (Shift, Reduce, Accept_Action, Error_Action);
 
    type Action_Type (Kind : Action_Kind := Error_Action) is record
       case Kind is
@@ -23,7 +23,7 @@ package Canonical_LR_Parser is
             Target_State : State_Index;
          when Reduce =>
             Production : Rule_Index;
-         when Accept | Error_Action =>
+         when Accept_Action | Error_Action =>
             null;
       end case;
    end record;
@@ -96,23 +96,23 @@ package Canonical_LR_Parser is
    -- Public Subprograms
 
    -- Validates grammar well-formedness
-   procedure Validate_Grammar (G : in Grammar_Definition);
-   with Pre  => not G.Productions.Is_Empty,
-        Post => True;
+   procedure Validate_Grammar (G : in Grammar_Definition)
+     with Pre  => not G.Productions.Is_Empty,
+          Post => True;
 
    -- Builds LR(1) parsing table and canonical collection of item sets
    procedure Build_Parsing_Table 
      (G     : in  Grammar_Definition;
-      Table : out Parsing_Table);
-   with Pre  => not G.Productions.Is_Empty;
+      Table : out Parsing_Table)
+     with Pre  => not G.Productions.Is_Empty;
 
    -- Parses a sequence of tokens using the Canonical LR(1) table
    procedure Parse
      (Table    : in  Parsing_Table;
       G        : in  Grammar_Definition;
       Tokens   : in  Symbol_Vectors.Vector;
-      Accepted : out Boolean);
-   with Pre  => not Tokens.Is_Empty;
+      Accepted : out Boolean)
+     with Pre  => not Tokens.Is_Empty;
 
    -- Helper to create a standard sample arithmetic expression grammar
    procedure Create_Expression_Grammar (G : out Grammar_Definition);
