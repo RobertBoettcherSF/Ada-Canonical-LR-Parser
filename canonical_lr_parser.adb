@@ -47,10 +47,13 @@ package body Canonical_LR_Parser is
       G : in Grammar_Definition) return Item_Sets.Set
    is
       Result : Item_Sets.Set := I;
+      To_Add : Item_Sets.Set;
       Added  : Boolean := True;
    begin
       while Added loop
          Added := False;
+         To_Add.Clear;
+
          for Item of Result loop
             if Item.Dot_Pos < G.Productions.Element (Item.Rule_No).RHS.Last_Index then
                declare
@@ -69,8 +72,8 @@ package body Canonical_LR_Parser is
                                     New_Item : constant LR1_Item := 
                                       (Rule_No => J, Dot_Pos => 0, Lookahead => T_Idx);
                                  begin
-                                    if not Result.Contains (New_Item) then
-                                       Result.Insert (New_Item);
+                                    if not Result.Contains (New_Item) and then not To_Add.Contains (New_Item) then
+                                       To_Add.Insert (New_Item);
                                        Added := True;
                                     end if;
                                  end;
@@ -79,8 +82,8 @@ package body Canonical_LR_Parser is
                                  EOF_Item : constant LR1_Item := 
                                    (Rule_No => J, Dot_Pos => 0, Lookahead => G.EOF_Symbol);
                               begin
-                                 if not Result.Contains (EOF_Item) then
-                                    Result.Insert (EOF_Item);
+                                 if not Result.Contains (EOF_Item) and then not To_Add.Contains (EOF_Item) then
+                                    To_Add.Insert (EOF_Item);
                                     Added := True;
                                  end if;
                               end;
@@ -91,6 +94,11 @@ package body Canonical_LR_Parser is
                end;
             end if;
          end loop;
+
+         for New_Item of To_Add loop
+            Result.Insert (New_Item);
+         end loop;
+
       end loop;
       return Result;
    end Closure;
