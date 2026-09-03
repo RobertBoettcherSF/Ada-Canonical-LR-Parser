@@ -1,7 +1,6 @@
 -- canonical_lr_parser.adb
 -- Body implementation for Canonical LR(1) Parser in Ada 2023
 
-with Ada.Containers.Ordered_Sets;
 with Ada.Containers.Vectors;
 
 package body Canonical_LR_Parser is
@@ -59,7 +58,7 @@ package body Canonical_LR_Parser is
                     G.Productions.Element (Item.Rule_No).RHS;
                   Next_Sym : constant Symbol_Index := Prod_RHS.Element (Item.Dot_Pos + 1);
                begin
-                  if Next_Sym > G.Terminal_Count and Next_Sym /= G.EOF_Symbol then
+                  if Next_Sym > G.Terminal_Count and then Next_Sym /= G.EOF_Symbol then
                      for J in 1 .. G.Productions.Last_Index loop
                         declare
                            P : constant Production_Record := G.Productions.Element (J);
@@ -135,39 +134,39 @@ package body Canonical_LR_Parser is
       Table.States.Append (Initial_Set);
 
       declare
-         Idx : Positive := 1;
+         Idx : State_Index := 0;
       begin
          while Idx <= Table.States.Last_Index loop
             declare
                Current_State : constant Item_Sets.Set := Table.States.Element (Idx);
             begin
-               for Sym_Val in 1 .. (G.Terminal_Count + G.Nonterminal_Count + 2) loop
+               for Sym_Val in 0 .. (G.Terminal_Count + G.Nonterminal_Count + 2) loop
                   declare
                      Next_S : constant Item_Sets.Set := Goto_Set (Current_State, Sym_Val, G);
                   begin
                      if not Next_S.Is_Empty then
                         declare
-                           Existing_Idx : State_Index := 0;
+                           Existing_Idx : Integer := -1;
                         begin
-                           for S_Idx in 1 .. Table.States.Last_Index loop
+                           for S_Idx in Table.States.First_Index .. Table.States.Last_Index loop
                               if Table.States.Element (S_Idx) = Next_S then
                                  Existing_Idx := S_Idx;
                                  exit;
                               end if;
                            end loop;
 
-                           if Existing_Idx = 0 then
+                           if Existing_Idx = -1 then
                               Table.States.Append (Next_S);
                               Existing_Idx := Table.States.Last_Index;
                            end if;
 
-                           if Sym_Val <= G.Terminal_Count or Sym_Val = G.EOF_Symbol then
+                           if Sym_Val <= G.Terminal_Count or else Sym_Val = G.EOF_Symbol then
                               Table.Actions.Include 
-                                ((State => Idx - 1, Symbol => Sym_Val),
-                                 (Kind => Shift, Target_State => Existing_Idx - 1));
+                                ((State => Idx, Symbol => Sym_Val),
+                                 (Kind => Shift, Target_State => Existing_Idx));
                            else
                               Table.Gotos.Include 
-                                ((State => Idx - 1, Symbol => Sym_Val), Existing_Idx - 1);
+                                ((State => Idx, Symbol => Sym_Val), Existing_Idx);
                            end if;
                         end;
                      end if;
@@ -178,7 +177,7 @@ package body Canonical_LR_Parser is
          end loop;
       end;
 
-      for S_Idx in 1 .. Table.States.Last_Index loop
+      for S_Idx in Table.States.First_Index .. Table.States.Last_Index loop
          declare
             St : constant Item_Sets.Set := Table.States.Element (S_Idx);
          begin
@@ -187,13 +186,13 @@ package body Canonical_LR_Parser is
                   Prod : constant Production_Record := G.Productions.Element (Item.Rule_No);
                begin
                   if Item.Dot_Pos = Prod.RHS.Last_Index then
-                     if Item.Rule_No = 1 and Item.Lookahead = G.EOF_Symbol then
+                     if Item.Rule_No = 1 and then Item.Lookahead = G.EOF_Symbol then
                         Table.Actions.Include 
-                          ((State => S_Idx - 1, Symbol => G.EOF_Symbol),
+                          ((State => S_Idx, Symbol => G.EOF_Symbol),
                            (Kind => Accept));
                      else
                         Table.Actions.Include 
-                          ((State => S_Idx - 1, Symbol => Item.Lookahead),
+                          ((State => S_Idx, Symbol => Item.Lookahead),
                            (Kind => Reduce, Production => Item.Rule_No));
                      end if;
                   end if;
