@@ -56,7 +56,8 @@ package Canonical_LR_Parser is
 
    package Item_Set_Vectors is new Ada.Containers.Vectors
      (Index_Type   => State_Index,
-      Element_Type => Item_Sets.Set);
+      Element_Type => Item_Sets.Set,
+      "="          => Item_Sets."=");
 
    -- Grammar definition record
    type Grammar_Definition is record
