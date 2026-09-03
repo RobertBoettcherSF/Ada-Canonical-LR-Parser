@@ -3,7 +3,7 @@
 
 with Ada.Containers.Vectors;
 with Ada.Containers.Ordered_Sets;
-with Ada.Containers.Maps;
+with Ada.Containers.Ordered_Maps;
 
 package Canonical_LR_Parser is
 
@@ -75,11 +75,11 @@ package Canonical_LR_Parser is
 
    function "<" (Left, Right : Table_Key) return Boolean;
 
-   package Action_Maps is new Ada.Containers.Maps
+   package Action_Maps is new Ada.Containers.Ordered_Maps
      (Key_Type     => Table_Key,
       Element_Type => Action_Type);
 
-   package Goto_Maps is new Ada.Containers.Maps
+   package Goto_Maps is new Ada.Containers.Ordered_Maps
      (Key_Type     => Table_Key,
       Element_Type => State_Index);
 
